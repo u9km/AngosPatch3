@@ -1,9 +1,9 @@
-Package: com.u9km.angospatcher
-Name: AngosPatcher
+Package: com.gemini.angospatcher
+Name: Gemini Ultimate Ghost
 Depends: mobilesubstrate
-Version: 1.0
+Version: 1.0.0
 Architecture: iphoneos-arm64
-Description: Advanced Stealth Memory Patcher for Game Security.
-Maintainer: u9km
-Author: u9km
+Description: Advanced Anti-Ban & Stealth Protection for Non-Jailbroken devices. Features Lobby Shield and Offline Ban Bypass.
+Maintainer: Gemini Developer
+Author: Gemini
 Section: Tweaks

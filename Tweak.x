@@ -11,27 +11,11 @@ extern "C" {
 }
 #endif
 
+// Target Image Names
 #define ANOGS_IMAGE "anogs"
-#define GAME_IMAGE "ShadowTrackerExtra"
 #define ARM64_RET 0xD65F03C0
 
-typedef struct {
-    uint64_t offset;
-} PatchData;
-
-static const PatchData gamePatches[] = {
-    {0x1b7404}, {0xaa738}, {0xAA550}, {0x4A594}, {0x76CC4}, {0x82C8C}, 
-    {0x90488}, {0x905D8}, {0x94E34}, {0xADCDC}, {0x57F98}, {0x583E4}, 
-    {0x5F7D4}, {0x5FF64}, {0x1EDF8C}, {0x1e094}, {0x1E06C}, {0x320B4}, 
-    {0x239A4}, {0x3a174}, {0x42690}, {0x426cc}, {0x95458}, {0xb3030}, 
-    {0x44e24}, {0x45E8C}, {0x45DBC}, {0x45CEC}, {0x45B20}, {0x45804}, 
-    {0x458A4}, {0x151778}
-};
-
-static const PatchData securityBypasses[] = {
-    {0x1A2C40}, {0x1B8F90}, {0x24D110}, {0x15D380}
-};
-
+// Core Logic for Stealth Writing
 bool StealthRemapWrite(uintptr_t address, uint32_t data) {
     mach_port_t task = mach_task_self();
     vm_address_t page_start = trunc_page(address);
@@ -67,27 +51,23 @@ uintptr_t GetImageSlide(const char* imageName) {
     return 0;
 }
 
-void ExecuteAdvancedBypass() {
+// Logic to bypass anogs security
+void ApplyAnogsBypass() {
     uintptr_t anogsBase = GetImageSlide(ANOGS_IMAGE);
     if (anogsBase > 0) {
+        // These are generic security bypass points for anogs framework
+        // They target detection loops and environment checks
+        uint64_t bypassOffsets[] = {0x1A2C40, 0x1B8F90, 0x24D110, 0x15D380}; 
+        
         for (int i = 0; i < 4; i++) {
-            StealthRemapWrite(anogsBase + securityBypasses[i].offset, ARM64_RET);
-        }
-    }
-
-    [NSThread sleepForTimeInterval:0.5];
-
-    uintptr_t gameBase = GetImageSlide(GAME_IMAGE);
-    if (gameBase > 0) {
-        size_t count = sizeof(gamePatches) / sizeof(PatchData);
-        for (size_t i = 0; i < count; i++) {
-            StealthRemapWrite(gameBase + gamePatches[i].offset, ARM64_RET);
+            StealthRemapWrite(anogsBase + bypassOffsets[i], ARM64_RET);
         }
     }
 }
 
 %ctor {
+    // 25 Seconds delay to ensure the game engine and anogs are fully initialized
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(25 * NSEC_PER_SEC)), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
-        ExecuteAdvancedBypass();
+        ApplyAnogsBypass();
     });
 }

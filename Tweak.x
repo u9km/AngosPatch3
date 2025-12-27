@@ -3,6 +3,9 @@
 #include <mach/mach.h>
 #include <libkern/OSCacheControl.h>
 
+// تعريف ضروري لعمل الكود
+#define CFSwapInt32(x) (uint32_t)((((x) & 0xFF000000) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | (((x) & 0x000000FF) << 24))
+
 static uintptr_t get_base_address() {
     uint32_t count = _dyld_image_count();
     for (uint32_t i = 0; i < count; i++) {
@@ -32,10 +35,9 @@ static const uint64_t patch_offsets[] = {
     0x44e24, 0x45E8C, 0x45DBC, 0x45CEC, 0x45B20, 0x45804, 0x458A4, 0x151778
 };
 
-#define PATCH_INST 0xD65F03C0
+#define PATCH_INST CFSwapInt32(0xC0035FD6)
 
 %ctor {
-    // تم استخدام تأخير 15 ثانية بناءً على طلبك لضمان استقرار المحرك
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         uintptr_t slide = get_base_address();
         if (slide > 0) {
@@ -46,3 +48,4 @@ static const uint64_t patch_offsets[] = {
         }
     });
 }
+

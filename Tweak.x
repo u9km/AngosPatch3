@@ -1,46 +1,47 @@
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 #import <objc/runtime.h>
-#import <mach-o/dyld.h>
 
-@interface GeminiUltra : NSObject
+// --- [كلاس الحماية المستقل] ---
+@interface GeminiPure : NSObject
 @end
 
-@implementation GeminiUltra
+@implementation GeminiPure
 
-// 1. تزييف معرف الجهاز (أساسي لمنع الحظر الغيابي)
-- (id)hookedIDFV {
-    return [[NSUUID alloc] initWithUUIDString:@"D721E1F8-C48D-4B1E-92FC-0C347A2E7F6B"];
+// تزييف معرف الجهاز لمنع الباند الغيابي
+- (id)newIDFV {
+    return [[NSUUID alloc] initWithUUIDString:@"A123E456-B789-4C0D-1E2F-3G4H5I6J7K8L"];
 }
 
-// 2. تزييف الـ Bundle ID (يجعل اللعبة تظن أنها النسخة الرسمية)
-- (NSString *)hookedBundleID {
-    return @"com.tencent.ig"; 
+// تزييف معرف التطبيق لمنع كشف التعديل (حماية الأيمبوت)
+- (NSString *)newBundleID {
+    return @"com.tencent.ig";
 }
 
 @end
 
-// --- [محرك الحماية من كشف التعديلات] ---
+// --- [محرك الحقن الأصيل] ---
+void runNativeBypass() {
+    // 1. هوك IDFV
+    Class deviceClass = objc_getClass("UIDevice");
+    if (deviceClass) {
+        Method orig = class_getInstanceMethod(deviceClass, @selector(identifierForVendor));
+        Method swiz = class_getInstanceMethod([GeminiPure class], @selector(newIDFV));
+        method_exchangeImplementations(orig, swiz);
+    }
 
-void StartAimbotProtection() {
-    // استخدام "Method Swizzling" لأنه لا يلمس ملفات اللعبة الأصلية (بدون كراش)
-    
-    // هوك الهوية (IDFV)
-    Method origIdfv = class_getInstanceMethod([UIDevice class], @selector(identifierForVendor));
-    Method swizIdfv = class_getInstanceMethod([GeminiUltra class], @selector(hookedIDFV));
-    method_exchangeImplementations(origIdfv, swizIdfv);
-    
-    // هوك الـ Bundle ID (منع اكتشاف النسخة المعدلة)
-    Method origBundle = class_getInstanceMethod([NSBundle class], @selector(bundleIdentifier));
-    Method swizBundle = class_getInstanceMethod([GeminiUltra class], @selector(hookedBundleID));
-    method_exchangeImplementations(origBundle, swizBundle);
-
-    NSLog(@"[Gemini] Aimbot Stealth Protection Active.");
+    // 2. هوك BundleID
+    Class bundleClass = [NSBundle class];
+    if (bundleClass) {
+        Method origB = class_getInstanceMethod(bundleClass, @selector(bundleIdentifier));
+        Method swizB = class_getInstanceMethod([GeminiPure class], @selector(newBundleID));
+        method_exchangeImplementations(origB, swizB);
+    }
 }
 
 %ctor {
-    // تأخير طويل جداً (110 ثانية)
-    // السر: يتم تفعيل الحماية بعد أن تكون قد بدأت المباراة أو دخلت اللوبي واستقرت الحماية
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(110 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        StartAimbotProtection();
+    // انتظار 100 ثانية لضمان استقرار اللعبة تماماً وتخطي الفحص الأولي
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(100 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        runNativeBypass();
     });
 }

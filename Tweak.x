@@ -1,36 +1,46 @@
 #import <Foundation/Foundation.h>
+#import <objc/runtime.h>
 #import <mach-o/dyld.h>
-#import <dlfcn.h>
-#import <substrate.h>
 
-// تعريف لتخزين الدالة الأصلية
-static id (*orig_idfv)(id self, SEL _cmd);
+@interface GeminiUltra : NSObject
+@end
 
-// دالة الهوك الجديدة (تزييف الهوية)
-id hooked_idfv(id self, SEL _cmd) {
-    // إرجاع معرف وهمي ثابت يمنع السيرفر من التعرف على جهازك المحظور
-    return @"A721B1A8-D49C-4B1E-92FC-0C347A2E7F6B";
+@implementation GeminiUltra
+
+// 1. تزييف معرف الجهاز (أساسي لمنع الحظر الغيابي)
+- (id)hookedIDFV {
+    return [[NSUUID alloc] initWithUUIDString:@"D721E1F8-C48D-4B1E-92FC-0C347A2E7F6B"];
 }
 
-// دالة التنفيذ الآمن
-void ExecuteProtection() {
-    // البحث عن الكلاس بهدوء دون التسبب في انهيار (objc_lookUpClass)
-    Class deviceClass = objc_lookUpClass("UIDevice");
-    if (deviceClass) {
-        SEL idfvSelector = sel_registerName("identifierForVendor");
-        // تبديل الرسائل (Method Swizzling) بدلاً من تعديل بايتات الذاكرة
-        MSHookMessageEx(deviceClass, idfvSelector, (IMP)hooked_idfv, (IMP *)&orig_idfv);
-    }
+// 2. تزييف الـ Bundle ID (يجعل اللعبة تظن أنها النسخة الرسمية)
+- (NSString *)hookedBundleID {
+    return @"com.tencent.ig"; 
+}
+
+@end
+
+// --- [محرك الحماية من كشف التعديلات] ---
+
+void StartAimbotProtection() {
+    // استخدام "Method Swizzling" لأنه لا يلمس ملفات اللعبة الأصلية (بدون كراش)
+    
+    // هوك الهوية (IDFV)
+    Method origIdfv = class_getInstanceMethod([UIDevice class], @selector(identifierForVendor));
+    Method swizIdfv = class_getInstanceMethod([GeminiUltra class], @selector(hookedIDFV));
+    method_exchangeImplementations(origIdfv, swizIdfv);
+    
+    // هوك الـ Bundle ID (منع اكتشاف النسخة المعدلة)
+    Method origBundle = class_getInstanceMethod([NSBundle class], @selector(bundleIdentifier));
+    Method swizBundle = class_getInstanceMethod([GeminiUltra class], @selector(hookedBundleID));
+    method_exchangeImplementations(origBundle, swizBundle);
+
+    NSLog(@"[Gemini] Aimbot Stealth Protection Active.");
 }
 
 %ctor {
-    // السر في منع الكراش: الانتظار الطويل وتغيير الخيط (Thread)
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
-        // انتظار 100 ثانية لضمان استقرار اللعبة تماماً وتخطي فحوصات البداية
-        [NSThread sleepForTimeInterval:100.0];
-        
-        dispatch_async(dispatch_get_main_queue(), ^{
-            ExecuteProtection();
-        });
+    // تأخير طويل جداً (110 ثانية)
+    // السر: يتم تفعيل الحماية بعد أن تكون قد بدأت المباراة أو دخلت اللوبي واستقرت الحماية
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(110 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        StartAimbotProtection();
     });
 }

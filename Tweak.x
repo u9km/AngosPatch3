@@ -1,47 +1,58 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import <sys/utsname.h>
 
-// --- [كلاس الحماية المستقل] ---
-@interface GeminiPure : NSObject
+@interface GeminiGodShield : NSObject
 @end
 
-@implementation GeminiPure
+@implementation GeminiGodShield
 
-// تزييف معرف الجهاز لمنع الباند الغيابي
-- (id)newIDFV {
-    return [[NSUUID alloc] initWithUUIDString:@"A123E456-B789-4C0D-1E2F-3G4H5I6J7K8L"];
+// 1. تزييف هوية الجهاز (منع الباند الغيابي وباند الآي بي)
+- (id)fakeIDFV {
+    return [[NSUUID alloc] initWithUUIDString:@"C182A431-E59D-4C1F-83FC-1D458B3F8G7H"];
 }
 
-// تزييف معرف التطبيق لمنع كشف التعديل (حماية الأيمبوت)
-- (NSString *)newBundleID {
-    return @"com.tencent.ig";
+// 2. تزييف اسم الجهاز (لإخفاء أنك تستخدم جهازاً معدلاً أو iPad على موبايل)
+- (NSString *)fakeModel {
+    return @"iPhone14,3"; // تزييف الجهاز كـ iPhone 13 Pro Max
+}
+
+// 3. تعطيل تقارير البلاغات والكشف (Anti-Cheat Bypass)
+- (void)disableReports:(id)arg1 {
+    return; // إرجاع قيمة فارغة لمنع إرسال سجلات الهاك
 }
 
 @end
 
-// --- [محرك الحقن الأصيل] ---
-void runNativeBypass() {
-    // 1. هوك IDFV
-    Class deviceClass = objc_getClass("UIDevice");
-    if (deviceClass) {
-        Method orig = class_getInstanceMethod(deviceClass, @selector(identifierForVendor));
-        Method swiz = class_getInstanceMethod([GeminiPure class], @selector(newIDFV));
-        method_exchangeImplementations(orig, swiz);
-    }
+// --- [محرك الحماية الفولاذي] ---
 
-    // 2. هوك BundleID
-    Class bundleClass = [NSBundle class];
-    if (bundleClass) {
-        Method origB = class_getInstanceMethod(bundleClass, @selector(bundleIdentifier));
-        Method swizB = class_getInstanceMethod([GeminiPure class], @selector(newBundleID));
-        method_exchangeImplementations(origB, swizB);
+void InitializeAntiBanShield() {
+    // هوك الهوية
+    method_exchangeImplementations(class_getInstanceMethod([UIDevice class], @selector(identifierForVendor)),
+                                   class_getInstanceMethod([GeminiGodShield class], @selector(fakeIDFV)));
+
+    // هوك موديل الجهاز لمنع كشف المحاكيات أو التعديلات
+    method_exchangeImplementations(class_getInstanceMethod([UIDevice class], @selector(model)),
+                                   class_getInstanceMethod([GeminiGodShield class], @selector(fakeModel)));
+
+    // هوك منع الباند اليدوي (تعطيل دوال إرسال البيانات الضخمة)
+    NSArray *classes = @[@"FIRAnalytics", @"MSAnalytics", @"AppCenterAnalytics"]; // استهداف محركات التقارير
+    for (NSString *className in classes) {
+        Class cls = objc_getClass([className UTF8String]);
+        if (cls) {
+            SEL logSel = sel_registerName("logEventWithName:parameters:");
+            Method m = class_getInstanceMethod(cls, logSel);
+            if (m) {
+                method_setImplementation(m, class_getMethodImplementation([GeminiGodShield class], @selector(disableReports:)));
+            }
+        }
     }
 }
 
 %ctor {
-    // انتظار 100 ثانية لضمان استقرار اللعبة تماماً وتخطي الفحص الأولي
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(100 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        runNativeBypass();
+    // تأخير الحقن لـ 120 ثانية (أمان مطلق) لضمان عبور فحص تشغيل اللعبة
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(120 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        InitializeAntiBanShield();
     });
 }

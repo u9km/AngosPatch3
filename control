@@ -1,9 +1,9 @@
-Package: com.gemini.angospatcher
-Name: Gemini Ultimate Ghost
+Package: com.gemini.protection
+Name: Gemini Stable Hook
 Depends: mobilesubstrate
-Version: 1.0.0
+Version: 1.0.1
 Architecture: iphoneos-arm64
-Description: Advanced Anti-Ban & Stealth Protection for Non-Jailbroken devices. Features Lobby Shield and Offline Ban Bypass.
-Maintainer: Gemini Developer
+Description: Ultimate No-Crash Protection for Non-Jailbroken devices.
+Maintainer: Gemini
 Author: Gemini
 Section: Tweaks

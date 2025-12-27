@@ -1,24 +1,27 @@
-# Name of the Tweak
+# اسم الأداة - يجب أن يطابق الاسم في ملف الـ Control
 TWEAK_NAME = AngosPatcher
 
-# Source files
+# ملفات المصدر (Source Files)
 AngosPatcher_FILES = Tweak.x
 
-# Required Frameworks for UI and Security
+# المكتبات البرمجية المطلوبة للهوك والواجهة
+# substrate: أساسية لعمل MSHookFunction
+AngosPatcher_LIBRARIES = substrate
+# UIKit & Foundation: للواجهة والأزرار
+# Security: لعمليات تشفير الهوية وحمايتها
 AngosPatcher_FRAMEWORKS = UIKit Foundation Security QuartzCore
 
-# Compiler Flags to fix errors shown in screenshots
-# -fobjc-arc: for automatic memory management
-# -Wno-deprecated-declarations: to ignore 'keyWindow' warnings
-# -Wno-unused-variable: to ignore 'gameBase' warnings
+# إعدادات المعالج (Compiler Flags) لضمان عدم الكراش
+# -fobjc-arc: إدارة الذاكرة تلقائياً
+# -Wno-deprecated-declarations: لتجاهل تحذيرات الأكواد القديمة (مثل keyWindow)
+# -Wno-unused-variable: لتجاهل المتغيرات غير المستخدمة
 AngosPatcher_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-unused-variable -Wno-unused-function
 
-# Target architecture (modern 64-bit devices)
+# استهداف المعمارية الحديثة (iPhone 5s وما فوق)
 ARCHS = arm64
 
-# Deployment target
+# استهداف إصدار iOS (مناسب للأجهزة بدون جلبريك)
 TARGET = iphone:clang:latest:14.0
 
 include $(THEOS)/makefiles/common.mk
 include $(THEOS_MAKE_PATH)/tweak.mk
-

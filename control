@@ -1,0 +1,9 @@
+Package: com.u9km.angospatcher
+Name: AngosPatcher
+Depends: mobilesubstrate
+Version: 1.0
+Architecture: iphoneos-arm64
+Description: Advanced Stealth Memory Patcher for Game Security.
+Maintainer: u9km
+Author: u9km
+Section: Tweaks

@@ -1,21 +1,22 @@
-# اسم الأداة (Tweak Name)
+# Name of the Tweak
 TWEAK_NAME = AngosPatcher
 
-# ملفات المصدر (Source Files)
+# Source files
 AngosPatcher_FILES = Tweak.x
 
-# المكتبات الأساسية (Frameworks)
-# أضفنا UIKit لإظهار الزر الأخضر في اللوبي
+# Required Frameworks for UI and Security
 AngosPatcher_FRAMEWORKS = UIKit Foundation Security QuartzCore
 
-# إعدادات المعالج (Compiler Flags)
-# أضفنا -fobjc-arc لدعم إدارة الذاكرة تلقائياً وتجنب الكراش
-AngosPatcher_CFLAGS = -fobjc-arc -Wno-unused-variable -Wno-unused-function
+# Compiler Flags to fix errors shown in screenshots
+# -fobjc-arc: for automatic memory management
+# -Wno-deprecated-declarations: to ignore 'keyWindow' warnings
+# -Wno-unused-variable: to ignore 'gameBase' warnings
+AngosPatcher_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-unused-variable -Wno-unused-function
 
-# استهداف معمارية 64-bit الحديثة فقط
+# Target architecture (modern 64-bit devices)
 ARCHS = arm64
 
-# استهداف إصدارات iOS الحديثة
+# Deployment target
 TARGET = iphone:clang:latest:14.0
 
 include $(THEOS)/makefiles/common.mk

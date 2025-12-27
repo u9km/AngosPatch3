@@ -1,55 +1,36 @@
 #import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
 #import <mach-o/dyld.h>
 #import <dlfcn.h>
 #import <substrate.h>
 
-// تعريف الدوال الأصلية لضمان عدم حدوث تضارب في الذاكرة
+// تعريف لتخزين الدالة الأصلية
 static id (*orig_idfv)(id self, SEL _cmd);
-static int (*orig_access)(const char *path, int mode);
 
-// --- [دوال الحماية المعدلة] ---
-
-// هوك تزييف الهوية لمنع الباند الغيابي (Silent IDFV Spoofer)
+// دالة الهوك الجديدة (تزييف الهوية)
 id hooked_idfv(id self, SEL _cmd) {
-    // إرجاع معرف وهمي ثابت يحمي جهازك من الحظر الرقمي
-    return @"B921E1F8-C48D-4B1E-92FC-0C347A2E7F6B";
+    // إرجاع معرف وهمي ثابت يمنع السيرفر من التعرف على جهازك المحظور
+    return @"A721B1A8-D49C-4B1E-92FC-0C347A2E7F6B";
 }
 
-// هوك إخفاء الملفات (Anti-Detection)
-int hooked_access(const char *path, int mode) {
-    if (path != NULL) {
-        // إخفاء أي أثر لمكتبات الحقن أو ملفات التعديل
-        if (strstr(path, "Library/MobileSubstrate") || strstr(path, "dylib") || strstr(path, "Tweak")) {
-            return -1; 
-        }
-    }
-    return orig_access(path, mode);
-}
-
-// --- [محرك التشغيل التلقائي بدون كراش] ---
-
-void StartGeminiUltimateProtection() {
-    // 1. هوك Objective-C (الأكثر استقراراً على الإطلاق للأجهزة بدون جلبريك)
-    Class deviceClass = objc_getClass("UIDevice");
+// دالة التنفيذ الآمن
+void ExecuteProtection() {
+    // البحث عن الكلاس بهدوء دون التسبب في انهيار (objc_lookUpClass)
+    Class deviceClass = objc_lookUpClass("UIDevice");
     if (deviceClass) {
         SEL idfvSelector = sel_registerName("identifierForVendor");
+        // تبديل الرسائل (Method Swizzling) بدلاً من تعديل بايتات الذاكرة
         MSHookMessageEx(deviceClass, idfvSelector, (IMP)hooked_idfv, (IMP *)&orig_idfv);
     }
-
-    // 2. هوك الدوال النظامية باستخدام dlsym للوصول الآمن
-    void *access_ptr = dlsym(RTLD_DEFAULT, "access");
-    if (access_ptr) {
-        MSHookFunction(access_ptr, (void *)hooked_access, (void **)&orig_access);
-    }
-
-    NSLog(@"[Gemini] Ultimate Protection Engaged - No Crash Mode.");
 }
 
 %ctor {
-    // تأخير التفعيل لـ 80 ثانية لضمان أن اللعبة تخطت كافة فحوصات التشغيل (Startup Checksum)
-    // هذا هو السر في منع الكراش للأجهزة بدون جلبريك
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(80 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        StartGeminiUltimateProtection();
+    // السر في منع الكراش: الانتظار الطويل وتغيير الخيط (Thread)
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0), ^{
+        // انتظار 100 ثانية لضمان استقرار اللعبة تماماً وتخطي فحوصات البداية
+        [NSThread sleepForTimeInterval:100.0];
+        
+        dispatch_async(dispatch_get_main_queue(), ^{
+            ExecuteProtection();
+        });
     });
 }

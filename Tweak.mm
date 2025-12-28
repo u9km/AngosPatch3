@@ -4,34 +4,51 @@
 #import <objc/runtime.h>
 #import <UIKit/UIKit.h>
 
-// --- قسم التشفير الذكي (XOR) ---
-// مفتاح التشفير الخاص بنا
-#define SECRET_KEY 0xAD 
+// --- قسم الحماية المتقدمة ---
 
-// دالة لفك تشفير النصوص في الذاكرة فقط (لإخفاء المسارات عن الرادار)
-NSString* decrypt_secure_path(int* data, int len) {
-    char* out = (char*)malloc(len + 1);
-    for(int i=0; i<len; i++) out[i] = data[i] ^ SECRET_KEY;
-    out[len] = '\0';
-    NSString* res = [NSString stringWithUTF8String:out];
-    free(out);
-    return res;
-}
-
-// --- نظام تزييف الهوية (IDFV Spoofer) ---
-// يمنع اللعبة من التعرف على جهازك الأصلي أو حظره (باند جهاز)
-void start_identity_spoofing() {
+// 1. دالة تزييف هوية الجهاز (IDFV Spoofer)
+// تمنع الشركة من ربط حسابك بجهازك الأصلي لتجنب "باند الجهاز"
+void ApplyIdentityShield() {
     Method m = class_getInstanceMethod([UIDevice class], @selector(identifierForVendor));
     method_setImplementation(m, imp_implementationWithBlock(^(id self) {
-        // توليد معرف عشوائي جديد في كل مرة يتم فيها تشغيل اللعبة
         return [[NSUUID alloc] initWithUUIDString:[[NSUUID UUID] UUIDString]];
     }));
 }
 
-// --- نظام الحماية المتكاملة والتشغيل الآمن ---
-__attribute__((constructor)) static void GlobalShieldInit() {
-    // 1. تفعيل تزييف الهوية فوراً
-    start_identity_spoofing();
+// 2. دالة منع كشف ملفات النظام (Anti-Cheat Bypass)
+// تقوم بخداع نظام حماية اللعبة لكي لا يرى ملفات السورس أو الجيلبريك
+bool (*orig_file_exists)(NSFileManager*, SEL, NSString*);
+bool hooked_file_exists(NSFileManager* self, SEL _cmd, NSString* path) {
+    if ([path containsString:@"Library/MobileSubstrate"] || 
+        [path containsString:@"Cydia"] || 
+        [path containsString:@"usr/lib/libsub"]) {
+        return NO; // إخبار اللعبة أن هذه الملفات غير موجودة
+    }
+    return orig_file_exists(self, _cmd, path);
+}
 
-    // 2. إخفاء وجود الملفات المعدلة (Anti-Jailbreak Detection)
-    // نستخدم XOR هنا لتشفير كلمة "Library/MobileSubstrate"
+// --- قسم التشغيل الآمن لملف AMAR VIP ---
+
+__attribute__((constructor)) static void Global_Security_Init() {
+    // تشغيل نظام تزييف الهوية فوراً
+    ApplyIdentityShield();
+    
+    // حقن كود منع الكشف داخل نظام الملفات
+    MSHookMessageEx([NSFileManager class], @selector(fileExistsAtPath:), (IMP)hooked_file_exists, (IMP*)&orig_file_exists);
+
+    // التحميل الذكي (تأخير 15 ثانية لضمان استقرار اللعبة وتخطي الفحص الأولي)
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(15 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        
+        // المسار الذي سيتم إنشاء الفريم ورك فيه (يجب أن يطابق اسم الفريم ورك في Makefile)
+        NSString *securePath = @"/Library/Frameworks/MetalCoreEngine.framework/AMAR_VIP.dylib";
+        
+        void *v8_handle = dlopen([securePath UTF8String], RTLD_NOW);
+        
+        if (v8_handle) {
+            NSLog(@"[SECURITY] AMAR VIP Loaded Successfully inside Shield.");
+        } else {
+            // إذا حاول أحد العبث بالفريم ورك أو لم يجد الملف، تغلق اللعبة حمايةً للحساب
+            // exit(0);
+        }
+    });
+}

@@ -1,41 +1,67 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#import <substrate.h> // استخدام المكتبة الأساسية مباشرة
 
-// 1. تعريف الوظيفة الأصلية لتخزينها
-static id (*orig_idfv)(UIDevice *, SEL);
-
-// 2. الوظيفة البديلة (التزييف الصامت)
-id swapped_idfv(UIDevice *self, SEL _cmd) {
+// --- إعدادات الحماية الفائقة ---
+// تزييف الهوية لمنع الباند الطرف الثالث والغيابي
+%hook UIDevice
+- (NSUUID *)identifierForVendor {
     return [[NSUUID alloc] initWithUUIDString:@"00000000-0000-0000-0000-000000000000"];
 }
+- (NSString *)name { return @"iPhone"; }
+- (NSString *)systemVersion { return @"15.0"; }
+%end
 
-// 3. دالة تنظيف المسارات (لحذف أثار الطرف الثالث)
-void CleanGameLogs() {
-    NSString *path = [NSHomeDirectory() stringByAppendingPathComponent:@"Library/Caches"];
-    [[NSFileManager defaultManager] removeItemAtPath:path error:nil];
+// --- تزييف بيئة التطبيق (فل هاك صامت) ---
+// هذا الجزء يوهم اللعبة أنها في بيئة تطوير رسمية، مما يفتح بعض الميزات ويقلل الحماية
+%hook NSBundle
+- (NSDictionary *)infoDictionary {
+    NSMutableDictionary *dict = [%orig mutableCopy];
+    [dict setObject:@"com.apple.Music" forKey:@"CFBundleIdentifier"];
+    [dict setObject:@"1.0.0" forKey:@"CFBundleShortVersionString"];
+    return dict;
 }
+%end
 
-%ctor {
-    // تنظيف ملفات السجل قبل أي إجراء
-    CleanGameLogs();
+// --- منع الكراش الفوري (إخفاء الملفات) ---
+// منع اللعبة من رؤية ملف الـ dylib الخاص بنا في الذاكرة
+%hook NSFileManager
+- (BOOL)fileExistsAtPath:(NSString *)path {
+    if ([path containsString:@"Library/MobileSubstrate"] || [path containsString:@".dylib"]) {
+        return NO;
+    }
+    return %orig;
+}
+%end
 
-    // تأخير الحقن لـ 40 ثانية (تجاوز الفحص الفوري عند الإقلاع)
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(40 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        
-        // استبدال الوظيفة يدوياً في الذاكرة (أصعب في الاكتشاف)
-        MSHookMessageEx(objc_getClass("UIDevice"), @selector(identifierForVendor), (IMP)swapped_idfv, (IMP *)&orig_idfv);
-        
-        // إظهار شعار التفعيل بعد الاستقرار التام
+// --- واجهة BLACK AND AMAR VIP الاحترافية ---
+void LoadVipInterface() {
+    dispatch_async(dispatch_get_main_queue(), ^{
         UIWindow *window = [UIApplication sharedApplication].keyWindow;
         if (window) {
-            UILabel *vip = [[UILabel alloc] initWithFrame:CGRectMake(0, 40, window.frame.size.width, 30)];
-            vip.text = @"🛡️ BLACK AND AMAR VIP: LOADED 🛡️";
-            vip.textColor = [UIColor whiteColor];
-            vip.backgroundColor = [UIColor colorWithRed:0 green:0.5 blue:0 alpha:0.8];
-            vip.textAlignment = NSTextAlignmentCenter;
-            [window addSubview:vip];
-            [UIView animateWithDuration:1.0 delay:4.0 options:0 animations:^{ vip.alpha = 0; } completion:^(BOOL f){ [vip removeFromSuperview]; }];
+            UIView *topBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, window.frame.size.width, 30)];
+            topBar.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.5];
+            
+            UILabel *status = [[UILabel alloc] initWithFrame:topBar.bounds];
+            status.text = @"🛡️ BLACK AND AMAR VIP: FULL PROTECTION ACTIVE 🛡️";
+            status.textColor = [UIColor cyanColor];
+            status.font = [UIFont boldSystemFontOfSize:12];
+            status.textAlignment = NSTextAlignmentCenter;
+            
+            [topBar addSubview:status];
+            [window addSubview:topBar];
+            
+            // اختفاء تدريجي أنيق
+            [UIView animateWithDuration:2.0 delay:10.0 options:0 animations:^{ topBar.alpha = 0; } completion:^(BOOL f){ [topBar removeFromSuperview]; }];
         }
+    });
+}
+
+// --- مشغل الحماية (Constructor) ---
+%ctor {
+    // أهم سر لمنع الكراش بدون جلبريك: التأخير الذكي
+    // نحن ننتظر حتى ينتهي نظام الحماية من الفحص الساكن عند التشغيل
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(45 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        LoadVipInterface();
+        NSLog(@"[VIP] Security Layers Injected Successfully.");
     });
 }

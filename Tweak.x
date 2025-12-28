@@ -1,67 +1,78 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
 
-// --- إعدادات الحماية الفائقة ---
-// تزييف الهوية لمنع الباند الطرف الثالث والغيابي
-%hook UIDevice
-- (NSUUID *)identifierForVendor {
-    return [[NSUUID alloc] initWithUUIDString:@"00000000-0000-0000-0000-000000000000"];
+@interface GeminiAutoShield : NSObject
+@end
+
+@implementation GeminiAutoShield
+
+// توليد UUID جديد لكل جلسة لعب لمنع تتبع الجهاز
++ (NSString *)generateRandomUUID {
+    return [[NSUUID UUID] UUIDString];
 }
-- (NSString *)name { return @"iPhone"; }
-- (NSString *)systemVersion { return @"15.0"; }
-%end
 
-// --- تزييف بيئة التطبيق (فل هاك صامت) ---
-// هذا الجزء يوهم اللعبة أنها في بيئة تطوير رسمية، مما يفتح بعض الميزات ويقلل الحماية
-%hook NSBundle
-- (NSDictionary *)infoDictionary {
-    NSMutableDictionary *dict = [%orig mutableCopy];
-    [dict setObject:@"com.apple.Music" forKey:@"CFBundleIdentifier"];
-    [dict setObject:@"1.0.0" forKey:@"CFBundleShortVersionString"];
-    return dict;
+// تزويد النظام بالمعرف العشوائي بدلاً من الحقيقي
+- (id)newIDFV {
+    return [[NSUUID alloc] initWithUUIDString:[GeminiAutoShield generateRandomUUID]];
 }
-%end
 
-// --- منع الكراش الفوري (إخفاء الملفات) ---
-// منع اللعبة من رؤية ملف الـ dylib الخاص بنا في الذاكرة
-%hook NSFileManager
-- (BOOL)fileExistsAtPath:(NSString *)path {
-    if ([path containsString:@"Library/MobileSubstrate"] || [path containsString:@".dylib"]) {
-        return NO;
+// تعطيل التحليلات وإرسال التقارير نهائياً
+- (void)stopAnalytics:(id)arg1 { return; }
+
+@end
+
+// دالة تنظيف الملفات (حماية نهاية الجيم) - تعمل في الخلفية
+void CleanEndGameLogs() {
+    NSString *docPath = [NSSearchPathForDirectories_InDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
+    NSString *cachePath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
+    
+    NSArray *targets = @[@"Logs", @"ReportData", @"Pandora", @"crash_reports", @"TP3_Internal"];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    
+    for (NSString *folder in targets) {
+        [fm removeItemAtPath:[docPath stringByAppendingPathComponent:folder] error:nil];
+        [fm removeItemAtPath:[cachePath stringByAppendingPathComponent:folder] error:nil];
     }
-    return %orig;
 }
-%end
 
-// --- واجهة BLACK AND AMAR VIP الاحترافية ---
-void LoadVipInterface() {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *window = [UIApplication sharedApplication].keyWindow;
-        if (window) {
-            UIView *topBar = [[UIView alloc] initWithFrame:CGRectMake(0, 0, window.frame.size.width, 30)];
-            topBar.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.5];
-            
-            UILabel *status = [[UILabel alloc] initWithFrame:topBar.bounds];
-            status.text = @"🛡️ BLACK AND AMAR VIP: FULL PROTECTION ACTIVE 🛡️";
-            status.textColor = [UIColor cyanColor];
-            status.font = [UIFont boldSystemFontOfSize:12];
-            status.textAlignment = NSTextAlignmentCenter;
-            
-            [topBar addSubview:status];
-            [window addSubview:topBar];
-            
-            // اختفاء تدريجي أنيق
-            [UIView animateWithDuration:2.0 delay:10.0 options:0 animations:^{ topBar.alpha = 0; } completion:^(BOOL f){ [topBar removeFromSuperview]; }];
+void ActivateAutoProtection() {
+    // 1. هوك الهوية (IDFV)
+    Class devClass = objc_getClass("UIDevice");
+    if (devClass) {
+        Method origMethod = class_getInstanceMethod(devClass, @selector(identifierForVendor));
+        IMP newImp = class_getMethodImplementation([GeminiAutoShield class], @selector(newIDFV));
+        method_setImplementation(origMethod, newImp);
+    }
+
+    // 2. معطل التقارير والتحليلات (بما فيها تحليلات تينسنت)
+    NSArray *classes = @[@"FIRAnalytics", @"GSDKUMManager", @"MSAnalytics", @"TencentAnalytics", @"BeaconReport"];
+    for (NSString *clsName in classes) {
+        Class cls = objc_getClass([clsName UTF8String]);
+        if (cls) {
+            SEL sel = sel_registerName("logEventWithName:parameters:");
+            Method m = class_getInstanceMethod(cls, sel);
+            if (m) {
+                method_setImplementation(m, class_getMethodImplementation([GeminiAutoShield class], @selector(stopAnalytics:)));
+            }
         }
+    }
+}
+
+// مشغل الحقن الصامت
+__attribute__((constructor)) static void initialize() {
+    // تأخير طويل (45 ثانية) لضمان دخول اللعبة وتخطي كافة الفحوصات الأمنية عند الإقلاع
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(45 * NSEC_PER_SEC)), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        
+        ActivateAutoProtection();
+        
+        // تنظيف دوري صامت كل 3 دقائق لمسح سجلات الباند
+        NSTimer *timer = [NSTimer timerWithTimeInterval:180.0 repeats:YES block:^(NSTimer * _Nonnull timer) {
+            CleanEndGameLogs();
+        }];
+        [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
+        
+        NSLog(@"[VIP] SILENT PROTECTION ACTIVE.");
     });
 }
 
-// --- مشغل الحماية (Constructor) ---
-%ctor {
-    // أهم سر لمنع الكراش بدون جلبريك: التأخير الذكي
-    // نحن ننتظر حتى ينتهي نظام الحماية من الفحص الساكن عند التشغيل
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(45 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        LoadVipInterface();
-        NSLog(@"[VIP] Security Layers Injected Successfully.");
-    });
-}

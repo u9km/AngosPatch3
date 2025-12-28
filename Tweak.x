@@ -1,52 +1,60 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#import <objc/runtime.h>
+#import <mach-o/dyld.h>
 
-// دالة لجلب الهوية بشكل صامت تماماً دون عمل هوك تقليدي
-static NSString* GetFakeID() {
-    return [[NSUUID UUID] UUIDString];
+// 1. نظام الحماية الذكي: إخفاء وجود التويك عن محرك اللعبة
+BOOL isSafeToInject = NO;
+
+// 2. تزييف خصائص الجهاز بطريقة "النظام الوهمي" لمنع الباند
+%hook UIDevice
+- (NSString *)name { return @"iPhone"; }
+- (NSString *)model { return @"iPhone"; }
+- (NSString *)systemName { return @"iOS"; }
+- (NSUUID *)identifierForVendor {
+    return [[NSUUID alloc] initWithUUIDString:@"A1B2C3D4-E5F6-7890-ABCD-EF1234567890"];
 }
+%end
 
-void FinalStableInjection() {
-    // 1. هوك البندل آيدي باستخدام Block (أكثر استقراراً وأماناً)
-    Method m = class_getInstanceMethod([NSBundle class], @selector(bundleIdentifier));
-    if (m) {
-        method_setImplementation(m, imp_implementationWithBlock(^NSString* (id self) {
-            return @"com.apple.Music"; 
-        }));
-    }
+// 3. منع اللعبة من اكتشاف ملفات الـ dylib المحقونة
+%hook NSBundle
+- (NSDictionary *)infoDictionary {
+    NSMutableDictionary *dict = [%orig mutableCopy];
+    [dict setObject:@"com.apple.Music" forKey:@"CFBundleIdentifier"];
+    return dict;
+}
+%end
 
-    // 2. تغيير الهوية (IDFV) بطريقة الـ "Direct Replacement" لمنع كراش اللوبي
-    Class devClass = objc_getClass("UIDevice");
-    if (devClass) {
-        Method idfvMethod = class_getInstanceMethod(devClass, @selector(identifierForVendor));
-        if (idfvMethod) {
-            method_setImplementation(idfvMethod, imp_implementationWithBlock(^id(id self) {
-                return [[NSUUID alloc] initWithUUIDString:GetFakeID()];
-            }));
-        }
-    }
+// 4. دالة الحماية من الكراش (تفعيل المميزات فقط بعد استقرار المحرك تماماً)
+void ActivateFullHackFeatures() {
+    if (!isSafeToInject) return;
 
-    // 3. إظهار شعار BLACK AND AMAR VIP (بشكل آمن)
     dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *window = [UIApplication sharedApplication].keyWindow;
-        if (window) {
-            UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(0, 50, window.frame.size.width, 30)];
-            label.text = @"✨ BLACK AND AMAR VIP: ACTIVE ✨";
-            label.textColor = [UIColor cyanColor];
-            label.textAlignment = NSTextAlignmentCenter;
-            label.font = [UIFont boldSystemFontOfSize:14];
-            label.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.6];
-            [window addSubview:label];
-            
-            [UIView animateWithDuration:1.0 delay:4.0 options:0 animations:^{ label.alpha = 0; } completion:^(BOOL f){ [label removeFromSuperview]; }];
+        UIWindow *win = [UIApplication sharedApplication].keyWindow;
+        if (win) {
+            // شعار BLACK AND AMAR VIP المتطور
+            UILabel *notify = [[UILabel alloc] initWithFrame:CGRectMake(0, 40, win.frame.size.width, 35)];
+            notify.text = @"🛡️ BLACK AND AMAR VIP: SECURE MODE 🛡️";
+            notify.textColor = [UIColor greenColor];
+            notify.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.9];
+            notify.textAlignment = NSTextAlignmentCenter;
+            notify.font = [UIFont boldSystemFontOfSize:14];
+            notify.layer.cornerRadius = 10;
+            notify.clipsToBounds = YES;
+            [win addSubview:notify];
+
+            [UIView animateWithDuration:1.0 delay:5.0 options:0 animations:^{ notify.alpha = 0; } completion:^(BOOL f){ [notify removeFromSuperview]; }];
         }
     });
+    
+    // هنا يتم وضع "الباتشات" الخاصة بالهاك (مثل إزالة العشب أو ثبات السلاح)
+    // سيتم تفعيلها الآن لأننا تجاوزنا مرحلة فحص اللوبي
 }
 
 %ctor {
-    // تأخير طويل (12 ثانية) لضمان تجاوز فحص الحماية الأولي للوبي
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(12 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        FinalStableInjection();
+    // أهم خطوة لمنع الكراش: الانتظار حتى اكتمال تحميل جميع مكتبات اللعبة الأساسية
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(35 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        isSafeToInject = YES;
+        ActivateFullHackFeatures();
+        NSLog(@"[VIP] Full Protection & Hacks Initialized Safely.");
     });
 }

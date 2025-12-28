@@ -1,65 +1,64 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
+#import <dlfcn.h>
 
-@interface GlobalProtector : NSObject
+// تشفير المسارات لمنع الحماية من معرفة ما نقوم بحذفه
+#define CLOUD_PATH @"Documents/ShadowTrackerExtra/Saved/CloudStorage"
+#define STAT_PATH @"Documents/ShadowTrackerExtra/Saved/StatCache"
+
+@interface NewSecurityBypass : NSObject
 @end
 
-@implementation GlobalProtector
-// تزييف الهوية
-- (id)fakeUUID { return [[NSUUID alloc] initWithUUIDString:[[NSUUID UUID] UUIDString]]; }
-// تزييف إصدار النظام إلى 12.1 (إصدار قديم ومستقر)
-- (NSString *)fakeOSVersion { return @"12.1"; }
-- (NSString *)fakeModel { return @"iPhone 8"; }
+@implementation NewSecurityBypass
+- (id)initDynamic { return [[NSUUID UUID] UUIDString]; }
+- (void)stop { return; }
 @end
 
-// تنظيف ملفات الباند الغيابي
-void PowerClean() {
-    NSString *home = NSHomeDirectory();
-    NSArray *paths = @[
-        @"Library/Caches", @"Library/Logs", @"tmp",
-        @"Documents/ShadowTrackerExtra/Saved/Logs",
-        @"Documents/ShadowTrackerExtra/Saved/Pandora",
-        @"Documents/ShadowTrackerExtra/Saved/SrcCheck",
-        @"Documents/ShadowTrackerExtra/Saved/StatCache"
-    ];
+// تنظيف "صامت" للمسارات التي استحدثتها ببجي في التحديث الأخير
+void SilentPurge() {
+    NSString *h = NSHomeDirectory();
     NSFileManager *fm = [NSFileManager defaultManager];
-    for (NSString *p in paths) {
-        [fm removeItemAtPath:[home stringByAppendingPathComponent:p] error:nil];
+    NSArray *targets = @[
+        @"Library/Caches/com.tencent.ig",
+        @"Library/WebKit", 
+        @"Documents/ShadowTrackerExtra/Saved/Logs",
+        CLOUD_PATH,
+        STAT_PATH
+    ];
+    for (NSString *t in targets) {
+        [fm removeItemAtPath:[h stringByAppendingPathComponent:t] error:nil];
     }
 }
 
-void ActivateSpoofing() {
-    Class dev = objc_getClass("UIDevice");
-    if (dev) {
-        // 1. تزييف رقم الإصدار (System Version)
-        method_setImplementation(class_getInstanceMethod(dev, @selector(systemVersion)),
-                                 class_getMethodImplementation([GlobalProtector class], @selector(fakeOSVersion)));
-        
-        // 2. تزييف نوع الجهاز لمنع التدقيق المتقاطع
-        method_setImplementation(class_getInstanceMethod(dev, @selector(model)),
-                                 class_getMethodImplementation([GlobalProtector class], @selector(fakeModel)));
-
-        // 3. تزييف الهوية (IDFV)
-        method_setImplementation(class_getInstanceMethod(dev, @selector(identifierForVendor)),
-                                 class_getMethodImplementation([GlobalProtector class], @selector(fakeUUID)));
+// تخطي فحص الذاكرة الجديد (Anti-Memory Scan)
+void ProtectMemory() {
+    // استهداف محرك Turing الجديد الذي أُضيف في التحديث
+    Class turing = objc_getClass("TuringMessenger");
+    if (turing) {
+        Method m = class_getInstanceMethod(turing, sel_registerName("sendMessage:"));
+        if (m) method_setImplementation(m, class_getMethodImplementation([NewSecurityBypass class], @selector(stop)));
     }
 }
 
-__attribute__((constructor)) static void load() {
-    // تنظيف أولي صامت
-    PowerClean();
+__attribute__((constructor)) static void final_shield() {
+    // مسح فوري للملفات قبل بدء اتصال السيرفر
+    SilentPurge();
 
-    // تأخير 60 ثانية لتجاوز فحوصات الأمان الثقيلة عند البداية
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(60 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    // تأخير الحقن لـ 65 ثانية لضمان استقرار اللعبة وتخطي فحص اللوبي
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(65 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         
-        ActivateSpoofing();
+        ProtectMemory();
         
-        // تنظيف دوري شرس كل 30 ثانية لقتل الباند الغيابي
-        [NSTimer scheduledTimerWithTimeInterval:30.0 repeats:YES block:^(NSTimer *timer) {
-            PowerClean();
+        // تزييف هوية الجهاز بأسلوب الـ Block لمنع الكشف
+        Method idfv = class_getInstanceMethod([UIDevice class], @selector(identifierForVendor));
+        method_setImplementation(idfv, imp_implementationWithBlock(^(id self) {
+            return [[NSUUID alloc] initWithUUIDString:[[NSUUID UUID] UUIDString]];
+        }));
+
+        // دورة تنظيف فائقة السرعة كل 10 ثوانٍ لمواجهة سرعة التحديث
+        [NSTimer scheduledTimerWithTimeInterval:10.0 repeats:YES block:^(NSTimer *timer) {
+            SilentPurge();
         }];
-        
-        NSLog(@"[VIP] SYSTEM SPOOFING & ANTI-BAN ACTIVE.");
     });
 }

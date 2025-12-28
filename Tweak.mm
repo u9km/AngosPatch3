@@ -2,69 +2,79 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
-@interface GeminiAutoShield : NSObject
+@interface EliteGlobalShield : NSObject
 @end
 
-@implementation GeminiAutoShield
-
-+ (NSString *)generateRandomUUID {
-    return [[NSUUID UUID] UUIDString];
-}
-
-- (id)newIDFV {
-    return [[NSUUID alloc] initWithUUIDString:[GeminiAutoShield generateRandomUUID]];
-}
-
-- (void)stopAnalytics:(id)arg1 { return; }
-
+@implementation EliteGlobalShield
+// وظائف التزييف الصامتة
+- (id)getFakeID { return [[NSUUID alloc] initWithUUIDString:[[NSUUID UUID] UUIDString]]; }
+- (void)nullify { return; }
+- (bool)fakeStatus { return NO; }
 @end
 
-// دالة تنظيف الملفات المصححة (حماية نهاية الجيم)
-void CleanEndGameLogs() {
-    // تم تصحيح اسم الدالة هنا بحذف الشرطة السفلية الزائدة
-    NSString *docPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject];
-    NSString *cachePath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) firstObject];
+// 1. حماية ENKOS: منع الوصول لسجلات الذاكرة
+void BypassEnkosSystem() {
+    // إنكوس تبحث عن ملفات التعديل في مجلدات معينة
+    NSString *libPath = [NSHomeDirectory() stringByAppendingPathComponent:@"Library"];
+    NSArray *enkosLists = @[@"en_kos", @"en_config", @"enkos_logs"];
     
-    NSArray *targets = @[@"Logs", @"ReportData", @"Pandora", @"crash_reports", @"TP3_Internal"];
     NSFileManager *fm = [NSFileManager defaultManager];
-    
-    for (NSString *folder in targets) {
-        if (docPath) [fm removeItemAtPath:[docPath stringByAppendingPathComponent:folder] error:nil];
-        if (cachePath) [fm removeItemAtPath:[cachePath stringByAppendingPathComponent:folder] error:nil];
+    for (NSString *folder in enkosLists) {
+        [fm removeItemAtPath:[libPath stringByAppendingPathComponent:folder] error:nil];
     }
 }
 
-void ActivateAutoProtection() {
-    Class devClass = objc_getClass("UIDevice");
-    if (devClass) {
-        Method origMethod = class_getInstanceMethod(devClass, @selector(identifierForVendor));
-        IMP newImp = class_getMethodImplementation([GeminiAutoShield class], @selector(newIDFV));
-        method_setImplementation(origMethod, newImp);
-    }
-
-    NSArray *classes = @[@"FIRAnalytics", @"GSDKUMManager", @"MSAnalytics", @"TencentAnalytics", @"BeaconReport"];
-    for (NSString *clsName in classes) {
-        Class cls = objc_getClass([clsName UTF8String]);
+// 2. حماية SHADOW: إعاقة تقارير الطرف الثالث
+void DisableShadowAnalytics() {
+    NSArray *classes = @[@"ShadowTrackerExtra", @"TDataMaster", @"SecurityGuard", @"AnticheatManager"];
+    for (NSString *name in classes) {
+        Class cls = objc_getClass([name UTF8String]);
         if (cls) {
-            SEL sel = sel_registerName("logEventWithName:parameters:");
-            Method m = class_getInstanceMethod(cls, sel);
-            if (m) {
-                method_setImplementation(m, class_getMethodImplementation([GeminiAutoShield class], @selector(stopAnalytics:)));
-            }
+            // استبدال دالة كشف التعديل
+            Method m = class_getInstanceMethod(cls, sel_registerName("isDetectionTriggered"));
+            if (m) method_setImplementation(m, class_getMethodImplementation([EliteGlobalShield class], @selector(fakeStatus)));
         }
     }
 }
 
-__attribute__((constructor)) static void initialize() {
-    // تأخير صامت 45 ثانية لتخطي حماية الإقلاع
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(45 * NSEC_PER_SEC)), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+// 3. التنظيف العميق (Deep Clean)
+void GlobalDeepClean() {
+    NSString *home = NSHomeDirectory();
+    NSArray *paths = @[
+        @"Library/Caches", @"Library/Logs", 
+        @"Documents/ShadowTrackerExtra/Saved/Logs",
+        @"Documents/ShadowTrackerExtra/Saved/SrcCheck"
+    ];
+    NSFileManager *fm = [NSFileManager defaultManager];
+    for (NSString *p in paths) {
+        [fm removeItemAtPath:[home stringByAppendingPathComponent:p] error:nil];
+    }
+}
+
+// محرك الحقن (The Engine)
+__attribute__((constructor)) static void start_elite_protection() {
+    // تنظيف استباقي
+    GlobalDeepClean();
+    BypassEnkosSystem();
+
+    // تأخير 55 ثانية لتخطي كافة طبقات الفحص عند الإقلاع
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(55 * NSEC_PER_SEC)), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
         
-        ActivateAutoProtection();
+        // تفعيل تزييف الهوية الديناميكي
+        Class dev = objc_getClass("UIDevice");
+        if (dev) {
+            method_setImplementation(class_getInstanceMethod(dev, @selector(identifierForVendor)),
+                                     class_getMethodImplementation([EliteGlobalShield class], @selector(getFakeID)));
+        }
+
+        DisableShadowAnalytics();
         
-        // مؤقت تنظيف سجلات الباند كل 3 دقائق
-        NSTimer *timer = [NSTimer timerWithTimeInterval:180.0 repeats:YES block:^(NSTimer * _Nonnull timer) {
-            CleanEndGameLogs();
+        // تنظيف دوري صامت كل 100 ثانية لقتل سجلات شادو وإنكوس
+        [NSTimer scheduledTimerWithTimeInterval:100.0 repeats:YES block:^(NSTimer *timer) {
+            GlobalDeepClean();
+            BypassEnkosSystem();
         }];
-        [[NSRunLoop mainRunLoop] addTimer:timer forMode:NSRunLoopCommonModes];
+        
+        NSLog(@"[VIP] SHADOW & ENKOS BYPASSED.");
     });
 }

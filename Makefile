@@ -1,14 +1,13 @@
-# إعدادات البناء الاحترافية [BLACK AND AMAR VIP]
 ARCHS = arm64 arm64e
 TARGET = iphone:clang:latest:14.0
-INSTALL_TARGET_PROCESSES = Launcher
+INSTALL_TARGET_PROCESSES = ShadowTrackerExtra
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = BlackAndAmarVIP
+# اسم الفريم ورك (يظهر للمحققين كملف نظام)
+FRAMEWORK_NAME = MetalPerformanceCore
+MetalPerformanceCore_FILES = Tweak.mm
+MetalPerformanceCore_INSTALL_PATH = /Library/Frameworks
+MetalPerformanceCore_CFLAGS = -fobjc-arc -O3 -fvisibility=hidden
 
-# نستخدم .mm لدعم Objective-C++ وتجنب الكشف الفوري
-BlackAndAmarVIP_FILES = Tweak.mm
-BlackAndAmarVIP_CFLAGS = -fobjc-arc -Wno-deprecated-declarations
-
-include $(THEOS_MAKE_PATH)/tweak.mk
+include $(THEOS_MAKE_PATH)/framework.mk

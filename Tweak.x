@@ -2,54 +2,86 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
-@interface GeminiStableGuard : NSObject
+@interface GeminiEmpire : NSObject
 @end
 
-@implementation GeminiStableGuard
-// توليد معرف جديد عند كل تشغيل لتخطي الباند الغيابي
+@implementation GeminiEmpire
+// توليد ID عشوائي ثابت لكل جلسة لعب لمنع تضارب البيانات
 - (id)newIDFV { 
-    return [[NSUUID alloc] initWithUUIDString:[[NSUUID UUID] UUIDString]]; 
+    static NSUUID *sessionUUID;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        sessionUUID = [NSUUID UUID];
+    });
+    return sessionUUID;
 }
 @end
 
-void ActivateStableShield() {
-    // 1. هوك الهوية والموديل
+// دالة عرض رسالة الترحيب الاحترافية
+void ShowVipWelcome() {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = nil;
+        // طريقة حديثة وآمنة لجلب النافذة لمنع الكراش في iOS 13+
+        if (@available(iOS 13.0, *)) {
+            for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+                if (scene.activationState == UISceneActivationStateForegroundActive) {
+                    window = ((UIWindowScene *)scene).windows.firstObject;
+                    break;
+                }
+            }
+        } else {
+            window = [UIApplication sharedApplication].keyWindow;
+        }
+
+        if (window) {
+            UIView *vipView = [[UIView alloc] initWithFrame:CGRectMake(window.frame.size.width/2 - 140, 60, 280, 45)];
+            vipView.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.85];
+            vipView.layer.cornerRadius = 12;
+            vipView.layer.borderWidth = 1.5;
+            vipView.layer.borderColor = [UIColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0].CGColor; // ذهبي
+            vipView.alpha = 0;
+
+            UILabel *vipLabel = [[UILabel alloc] initWithFrame:vipView.bounds];
+            vipLabel.text = @"🔥 BLACK AND AMAR VIP 🔥";
+            vipLabel.textColor = [UIColor whiteColor];
+            vipLabel.textAlignment = NSTextAlignmentCenter;
+            vipLabel.font = [UIFont boldSystemFontOfSize:15];
+            
+            [vipView addSubview:vipLabel];
+            [window addSubview:vipView];
+
+            [UIView animateWithDuration:0.8 animations:^{ vipView.alpha = 1; } completion:^(BOOL f) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [UIView animateWithDuration:0.8 animations:^{ vipView.alpha = 0; } completion:^(BOOL f2){ [vipView removeFromSuperview]; }];
+                });
+            }];
+        }
+    });
+}
+
+void SafeActivate() {
+    // هوك IDFV بطريقة أكثر استقراراً
     Class devClass = objc_getClass("UIDevice");
     if (devClass) {
-        method_exchangeImplementations(class_getInstanceMethod(devClass, @selector(identifierForVendor)),
-                                       class_getInstanceMethod([GeminiStableGuard class], @selector(newIDFV)));
+        Method m1 = class_getInstanceMethod(devClass, @selector(identifierForVendor));
+        Method m2 = class_getInstanceMethod([GeminiEmpire class], @selector(newIDFV));
+        if (m1 && m2) method_exchangeImplementations(m1, m2);
     }
 
-    // 2. تزييف البندل آيدي لزيادة الأمان
-    Class bundleClass = [NSBundle class];
-    if (bundleClass) {
-        Method m = class_getInstanceMethod(bundleClass, @selector(bundleIdentifier));
-        if (m) {
-            method_setImplementation(m, imp_implementationWithBlock(^NSString* (id self) {
-                return @"com.apple.Music"; 
-            }));
-        }
+    // هوك البندل آيدي
+    Method mBundle = class_getInstanceMethod([NSBundle class], @selector(bundleIdentifier));
+    if (mBundle) {
+        method_setImplementation(mBundle, imp_implementationWithBlock(^NSString* (id self) {
+            return @"com.apple.Music"; 
+        }));
     }
+    
+    ShowVipWelcome();
 }
 
 %ctor {
-    // تم إضافة تأخير 5 ثوانٍ بناءً على طلبك لضمان عدم الكراش
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        ActivateStableShield();
-        
-        // إظهار تنبيه بسيط يؤكد تفعيل الحماية بعد مرور الـ 5 ثوانٍ
-        UIWindow *window = [UIApplication sharedApplication].keyWindow;
-        UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(0, 60, window.frame.size.width, 30)];
-        label.text = @"STABLE PROTECTION: ON";
-        label.textColor = [UIColor greenColor];
-        label.textAlignment = NSTextAlignmentCenter;
-        label.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.5];
-        [window addSubview:label];
-        
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [label removeFromSuperview];
-        });
-        
-        NSLog(@"[Gemini] Shield Activated after 5s delay.");
+    // زيادة التأخير لـ 8 ثوانٍ لضمان استقرار اللوبي تماماً قبل الحقن
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        SafeActivate();
     });
 }

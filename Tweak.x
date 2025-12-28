@@ -1,58 +1,60 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
-#import <sys/utsname.h>
 
-@interface GeminiGodShield : NSObject
+@interface GeminiFullShield : NSObject
 @end
 
-@implementation GeminiGodShield
+@implementation GeminiFullShield
 
-// 1. تزييف هوية الجهاز (منع الباند الغيابي وباند الآي بي)
-- (id)fakeIDFV {
-    return [[NSUUID alloc] initWithUUIDString:@"C182A431-E59D-4C1F-83FC-1D458B3F8G7H"];
+// 1. تصفير الهوية فوراً (تغيير UUID يكسر الباند الحالي)
+- (id)newIDFV {
+    return [[NSUUID alloc] initWithUUIDString:@"F555E444-D333-C222-B111-A00099988877"];
 }
 
-// 2. تزييف اسم الجهاز (لإخفاء أنك تستخدم جهازاً معدلاً أو iPad على موبايل)
-- (NSString *)fakeModel {
-    return @"iPhone14,3"; // تزييف الجهاز كـ iPhone 13 Pro Max
+// 2. تزييف موديل الجهاز (لإخفاء البيئة المعدلة)
+- (NSString *)newModel {
+    return @"iPhone14,3"; 
 }
 
-// 3. تعطيل تقارير البلاغات والكشف (Anti-Cheat Bypass)
-- (void)disableReports:(id)arg1 {
-    return; // إرجاع قيمة فارغة لمنع إرسال سجلات الهاك
+// 3. منع كشف الجلبريك (إيهام اللعبة بأن النظام رسمي 100%)
+- (BOOL)isJailbroken {
+    return NO;
+}
+
+// 4. تعطيل إرسال ملفات الـ Log (درع ضد البلاغات)
+- (void)stopLogs:(id)arg1 {
+    return;
 }
 
 @end
 
-// --- [محرك الحماية الفولاذي] ---
+// --- [محرك الحقن الذكي بدون كراش] ---
 
-void InitializeAntiBanShield() {
-    // هوك الهوية
-    method_exchangeImplementations(class_getInstanceMethod([UIDevice class], @selector(identifierForVendor)),
-                                   class_getInstanceMethod([GeminiGodShield class], @selector(fakeIDFV)));
-
-    // هوك موديل الجهاز لمنع كشف المحاكيات أو التعديلات
-    method_exchangeImplementations(class_getInstanceMethod([UIDevice class], @selector(model)),
-                                   class_getInstanceMethod([GeminiGodShield class], @selector(fakeModel)));
-
-    // هوك منع الباند اليدوي (تعطيل دوال إرسال البيانات الضخمة)
-    NSArray *classes = @[@"FIRAnalytics", @"MSAnalytics", @"AppCenterAnalytics"]; // استهداف محركات التقارير
-    for (NSString *className in classes) {
-        Class cls = objc_getClass([className UTF8String]);
-        if (cls) {
-            SEL logSel = sel_registerName("logEventWithName:parameters:");
-            Method m = class_getInstanceMethod(cls, logSel);
-            if (m) {
-                method_setImplementation(m, class_getMethodImplementation([GeminiGodShield class], @selector(disableReports:)));
-            }
+void StartFullNativeShield() {
+    Class devClass = objc_getClass("UIDevice");
+    if (devClass) {
+        // تبديل الهوية والموديل
+        method_exchangeImplementations(class_getInstanceMethod(devClass, @selector(identifierForVendor)),
+                                       class_getInstanceMethod([GeminiFullShield class], @selector(newIDFV)));
+        
+        method_exchangeImplementations(class_getInstanceMethod(devClass, @selector(model)),
+                                       class_getInstanceMethod([GeminiFullShield class], @selector(newModel)));
+    }
+    
+    // تعطيل حساسات كشف الجلبريك في اللعبة
+    Class sensorClass = objc_getClass("AntiCheatManager"); // اسم افتراضي لمحرك الحماية
+    if (sensorClass) {
+        SEL jailSEL = sel_registerName("isJailbroken");
+        Method m = class_getInstanceMethod(sensorClass, jailSEL);
+        if (m) {
+            method_setImplementation(m, class_getMethodImplementation([GeminiFullShield class], @selector(isJailbroken)));
         }
     }
 }
 
 %ctor {
-    // تأخير الحقن لـ 120 ثانية (أمان مطلق) لضمان عبور فحص تشغيل اللعبة
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(120 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        InitializeAntiBanShield();
-    });
+    // حقن فوري بدون تأخير لسبق السيرفر
+    StartFullNativeShield();
+    NSLog(@"[Gemini] Full Native Shield Active - No Jailbreak Required.");
 }

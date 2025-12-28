@@ -1,9 +1,9 @@
-Package: com.gemini.protection
-Name: Gemini Stable Hook
+Package: com.blackamar.vip
+Name: BLACK AND AMAR VIP
 Depends: mobilesubstrate
-Version: 1.0.1
-Architecture: iphoneos-arm64
-Description: Ultimate No-Crash Protection for Non-Jailbroken devices.
-Maintainer: Gemini
-Author: Gemini
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: الحماية الأقوى والفل هاك المتطور لجهازك بدون جلبريك.
+Maintainer: BLACK AND AMAR
+Author: BLACK AND AMAR
 Section: Tweaks

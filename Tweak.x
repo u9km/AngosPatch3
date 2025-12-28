@@ -2,86 +2,51 @@
 #import <UIKit/UIKit.h>
 #import <objc/runtime.h>
 
-@interface GeminiEmpire : NSObject
-@end
-
-@implementation GeminiEmpire
-// توليد ID عشوائي ثابت لكل جلسة لعب لمنع تضارب البيانات
-- (id)newIDFV { 
-    static NSUUID *sessionUUID;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        sessionUUID = [NSUUID UUID];
-    });
-    return sessionUUID;
-}
-@end
-
-// دالة عرض رسالة الترحيب الاحترافية
-void ShowVipWelcome() {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIWindow *window = nil;
-        // طريقة حديثة وآمنة لجلب النافذة لمنع الكراش في iOS 13+
-        if (@available(iOS 13.0, *)) {
-            for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
-                if (scene.activationState == UISceneActivationStateForegroundActive) {
-                    window = ((UIWindowScene *)scene).windows.firstObject;
-                    break;
-                }
-            }
-        } else {
-            window = [UIApplication sharedApplication].keyWindow;
-        }
-
-        if (window) {
-            UIView *vipView = [[UIView alloc] initWithFrame:CGRectMake(window.frame.size.width/2 - 140, 60, 280, 45)];
-            vipView.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.85];
-            vipView.layer.cornerRadius = 12;
-            vipView.layer.borderWidth = 1.5;
-            vipView.layer.borderColor = [UIColor colorWithRed:1.0 green:0.84 blue:0.0 alpha:1.0].CGColor; // ذهبي
-            vipView.alpha = 0;
-
-            UILabel *vipLabel = [[UILabel alloc] initWithFrame:vipView.bounds];
-            vipLabel.text = @"🔥 BLACK AND AMAR VIP 🔥";
-            vipLabel.textColor = [UIColor whiteColor];
-            vipLabel.textAlignment = NSTextAlignmentCenter;
-            vipLabel.font = [UIFont boldSystemFontOfSize:15];
-            
-            [vipView addSubview:vipLabel];
-            [window addSubview:vipView];
-
-            [UIView animateWithDuration:0.8 animations:^{ vipView.alpha = 1; } completion:^(BOOL f) {
-                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(4 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                    [UIView animateWithDuration:0.8 animations:^{ vipView.alpha = 0; } completion:^(BOOL f2){ [vipView removeFromSuperview]; }];
-                });
-            }];
-        }
-    });
+// دالة لجلب الهوية بشكل صامت تماماً دون عمل هوك تقليدي
+static NSString* GetFakeID() {
+    return [[NSUUID UUID] UUIDString];
 }
 
-void SafeActivate() {
-    // هوك IDFV بطريقة أكثر استقراراً
-    Class devClass = objc_getClass("UIDevice");
-    if (devClass) {
-        Method m1 = class_getInstanceMethod(devClass, @selector(identifierForVendor));
-        Method m2 = class_getInstanceMethod([GeminiEmpire class], @selector(newIDFV));
-        if (m1 && m2) method_exchangeImplementations(m1, m2);
-    }
-
-    // هوك البندل آيدي
-    Method mBundle = class_getInstanceMethod([NSBundle class], @selector(bundleIdentifier));
-    if (mBundle) {
-        method_setImplementation(mBundle, imp_implementationWithBlock(^NSString* (id self) {
+void FinalStableInjection() {
+    // 1. هوك البندل آيدي باستخدام Block (أكثر استقراراً وأماناً)
+    Method m = class_getInstanceMethod([NSBundle class], @selector(bundleIdentifier));
+    if (m) {
+        method_setImplementation(m, imp_implementationWithBlock(^NSString* (id self) {
             return @"com.apple.Music"; 
         }));
     }
-    
-    ShowVipWelcome();
+
+    // 2. تغيير الهوية (IDFV) بطريقة الـ "Direct Replacement" لمنع كراش اللوبي
+    Class devClass = objc_getClass("UIDevice");
+    if (devClass) {
+        Method idfvMethod = class_getInstanceMethod(devClass, @selector(identifierForVendor));
+        if (idfvMethod) {
+            method_setImplementation(idfvMethod, imp_implementationWithBlock(^id(id self) {
+                return [[NSUUID alloc] initWithUUIDString:GetFakeID()];
+            }));
+        }
+    }
+
+    // 3. إظهار شعار BLACK AND AMAR VIP (بشكل آمن)
+    dispatch_async(dispatch_get_main_queue(), ^{
+        UIWindow *window = [UIApplication sharedApplication].keyWindow;
+        if (window) {
+            UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(0, 50, window.frame.size.width, 30)];
+            label.text = @"✨ BLACK AND AMAR VIP: ACTIVE ✨";
+            label.textColor = [UIColor cyanColor];
+            label.textAlignment = NSTextAlignmentCenter;
+            label.font = [UIFont boldSystemFontOfSize:14];
+            label.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.6];
+            [window addSubview:label];
+            
+            [UIView animateWithDuration:1.0 delay:4.0 options:0 animations:^{ label.alpha = 0; } completion:^(BOOL f){ [label removeFromSuperview]; }];
+        }
+    });
 }
 
 %ctor {
-    // زيادة التأخير لـ 8 ثوانٍ لضمان استقرار اللوبي تماماً قبل الحقن
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        SafeActivate();
+    // تأخير طويل (12 ثانية) لضمان تجاوز فحص الحماية الأولي للوبي
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(12 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        FinalStableInjection();
     });
 }
